@@ -1,0 +1,16 @@
+#!/bin/sh
+# (!!! Templated by Terraform !!!)
+
+# REF: https://tailscale.com/kb/1019/subnets/#step-2-connect-to-tailscale-as-a-subnet-router
+exec tailscale up \
+%{ if auth_key != "" ~}
+     --auth-key=file:/etc/tailscale/auth-key \
+%{ endif ~}
+%{ if length(advertise_tags) > 0 ~}
+     --advertise-tags='${join(",", [for v in advertise_tags: "tag:${v}"])}' \
+%{ endif ~}
+%{ if length(advertise_routes) > 0 ~}
+     --advertise-routes=${join(",", advertise_routes)} \
+%{ endif ~}
+     --accept-dns=false \
+     --ssh=true

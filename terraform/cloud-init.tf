@@ -25,11 +25,12 @@ data "cloudinit_config" "user_data" {
         sysctl_ip_forwarding = file("${path.module}/resources/system/etc/sysctl.d/99-ip-forwarding.conf")
 
         # Resources
-        tailscale_router_up = templatefile(
-          "${path.module}/resources/system/usr/local/sbin/tailscale-router-up",
+        tailscale_up = templatefile(
+          "${path.module}/resources/system/usr/local/sbin/tailscale-up",
           {
             auth_key         = var.tailscale_auth_key
-            advertise_routes = flatten(["${local.privnet_network}/${local.privnet_netcidr}", var.tailscale_gateway_routes])
+            advertise_tags   = [each.key]
+            advertise_routes = (each.key == "gateway") ? flatten(["${local.privnet_network}/${local.privnet_netcidr}", var.tailscale_gateway_routes]) : []
         })
         tailscale_auth_key = var.tailscale_auth_key
       }
