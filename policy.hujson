@@ -1,0 +1,91 @@
+{
+    // Networking options
+    // REFs:
+    // - https://tailscale.com/kb/1018/acls/#network-policy-options
+    "disableIPv4": true,
+    "randomizeClientPort": false,
+
+    // Users / groups
+    // REFs:
+    // - https://tailscale.com/kb/1018/acls/#users
+    // - https://tailscale.com/kb/1018/acls/#groups
+    "groups": {
+        "group:admin": ["exo-cedric@github"],
+        "group:guest": ["llambiel@github"],
+    },
+
+    // Hosts
+    // REFs:
+    // - https://tailscale.com/kb/1018/acls/#hosts
+    "hosts": {
+        "privnet": "10.42.168.0/24",
+        "ipv6-gva2": "2a04:c43::/32",
+    },
+
+    // ACLs
+    // REFs:
+    // - https://tailscale.com/kb/1018/acls/#acl-rules
+    "acls": [
+        // Allow ALL
+        // {
+        //     "src": ["*"],
+        //     "dst": ["*:*"],
+        //     "action": "accept",
+        // },
+        // Grant full PrivNet access to admin (group)
+        {
+            "src": ["group:admin"],
+            "dst": ["privnet:*"],
+            "action": "accept",
+        },
+        // Grant full gateway access to admin (group)
+        {
+            "src": ["group:admin"],
+            "dst": ["tag:gateway:*"],
+            "action": "accept",
+        },
+        // Grant full internal access to admin and guest (groups)
+        {
+            "src": ["group:admin", "group:guest"],
+            "dst": ["tag:internal:*"],
+            "action": "accept",
+        },
+        // Grant IPv6 SSH access to admin and guest (groups)
+        {
+            "src": ["group:admin", "group:guest"],
+            "dst": ["ipv6-gva2:22"],
+            "proto": "tcp",
+            "action": "accept",
+        },
+    ],
+
+    // SSH
+    // REFs:
+    // - https://tailscale.com/kb/1193/tailscale-ssh/
+    "ssh": [
+        // Grant "checked" (re-authenticated) gateway SSH access to admin (group)
+        {
+            "src": ["group:admin"],
+            "dst": ["tag:gateway"],
+            "users": ["ubuntu"],
+            "action": "check",
+        },
+        // Grant "regular" internal SSH access to admin and guest (groups)
+        {
+            "src": ["group:admin", "group:guest"],
+            "dst": ["tag:internal"],
+            "users": ["ubuntu"],
+            "action": "accept",
+        },
+    ],
+
+    // Tags
+    // REFs:
+    // - https://tailscale.com/kb/1068/acl-tags/
+    // - https://tailscale.com/kb/1018/acls/#tag-owners
+    "tagOwners": {
+        "tag:tailscale-poc": ["group:admin"],
+        "tag:gateway": ["group:admin"],
+        "tag:internal": ["group:admin"],
+    },
+}

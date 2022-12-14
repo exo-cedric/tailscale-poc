@@ -1,0 +1,84 @@
+## template: jinja
+#cloud-config
+---
+# (!!! To be templated by Terraform !!!)
+
+## Instance data (<-> jinja)
+#  REF: https://cloudinit.readthedocs.io/en/latest/topics/instancedata.html#using-instance-data
+
+
+## stage: init
+
+# REF: https://cloudinit.readthedocs.io/en/latest/topics/modules.html#write-files (once-per-instance)
+write_files:
+  # System setup
+  # (APT)
+  - path: /etc/apt/apt.conf.d/99-no-apt-daily
+    permissions: "0644"
+    owner: root:root
+    content: |
+      // Disable APT Daily run (/usr/lib/apt/apt.systemd.daily)
+      APT::Periodic::Enable "0";
+  # (routing)%{ if node_type == "gateway" }
+  - path: /etc/sysctl.d/99-ip-forwarding.conf
+    permissions: "0644"
+    owner: root:root
+    content: |
+      ${indent(6, sysctl_ip_forwarding)}%{ else }
+  # - not applicable -%{ endif }
+  # (privnet)
+  - path: /etc/netplan/eth1.yaml
+    content: |
+      network:
+        version: 2
+        ethernets:
+          eth1:
+            dhcp4: true
+  # Resources
+  # (taiscale)
+  - path: /usr/local/sbin/tailscale-up
+    permissions: "0755"
+    owner: root:root
+    content: |
+      ${indent(6, tailscale_up)}
+  # (authentication key)%{ if tailscale_auth_key != "" }
+  - path: /etc/tailscale/auth-key
+    permissions: "0600"
+    owner: root:root
+    content: |
+      ${tailscale_auth_key}%{ else }
+  # - not applicable -%{ endif }
+
+
+## stage: config
+
+# REF: https://cloudinit.readthedocs.io/en/latest/topics/modules.html#apt-configure (once-per-instance)
+# APT sources
+apt:
+  sources:
+    "tailscale":
+      # REF: https://tailscale.com/kb/1031/install-linux/
+      source: "deb [arch=amd64] https://pkgs.tailscale.com/stable/{{ v1.distro }} {{ v1.distro_release }} main"
+      key: |
+        ${indent(8, apt_key_tailscale)}
+
+
+## stage: final
+
+# REF: https://cloudinit.readthedocs.io/en/latest/topics/modules.html#package-update-upgrade-install (once-per-instance)
+packages:
+  - openssh-server
+  # source: tailscale
+  - tailscale
+package_update: true
+package_upgrade: true
+package_reboot_if_required: false
+
+# REFs:
+# - https://cloudinit.readthedocs.io/en/latest/topics/modules.html#scripts-user (once-per-instance)
+# - https://cloudinit.readthedocs.io/en/latest/topics/modules.html#runcmd (once-per-instance)
+runcmd:
+  # Apply system configuration
+  - [sysctl, --system]
+  # PrivNet (eth1) setup
+  - [netplan, apply]
